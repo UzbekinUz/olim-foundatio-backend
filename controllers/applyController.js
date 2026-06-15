@@ -1,0 +1,251 @@
+const Application = require("../models/applyModel.js");
+const { JWT } = require("google-auth-library");
+const { GoogleSpreadsheet } = require("google-spreadsheet");
+
+// Barcha ma'lumotlarni Google Sheetga yozuvchi funksiya
+async function addToGoogleSheet(applicationData) {
+    try {
+        // .env faylingizdagi ma'lumotlar bilan Google API'ga ulanish
+        const serviceAccountAuth = new JWT({
+            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // \n belgilari buzilmasligi uchun
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
+        await doc.loadInfo(); 
+
+        const sheet = doc.sheetsByIndex[0];
+
+        // MODELNING BARCHA MA'LUMOTLARINI GOOGLE SHEETGA UZATISH
+        await sheet.addRow({
+            Username_ID: applicationData.usernameId,
+            Student_Name: applicationData.studentFullName,
+            Birth_Date: applicationData.birthDate,
+            Nationality: applicationData.nationality,
+            Permanent_Address: applicationData.permanentAddress,
+            Phone: applicationData.phoneNumber,
+            Email: applicationData.emailAddress,
+
+            // Pasport ob'ekti ichidagilar
+            Passport_Seria_Number: `${applicationData.passportDetails.passportSeria}${applicationData.passportDetails.passportNumber}`,
+            JSHSHIR: applicationData.passportDetails.jshshir,
+            Passport_Given_Date: applicationData.passportDetails.givenDate,
+            Passport_Expires_Date: applicationData.passportDetails.expiresDate,
+            Passport_Given_By: applicationData.passportDetails.givenBy,
+
+            // O'qish ma'lumotlari
+            University: applicationData.universityName,
+            Study_Form: applicationData.studyForm,
+            Study_Field: applicationData.studyField,
+            Course: applicationData.currentCourse,
+
+            // Ilmiy faoliyat (Boolean qiymatlarni Ha/Yo'q ko'rinishida yozamiz)
+            Is_Doing_Research: applicationData.isDoingResearch ? "Ha" : "Yo'q",
+            Research_Details: applicationData.researchDetails || "",
+            Has_Conference: applicationData.hasConferenceParticipation ? "Ha" : "Yo'q",
+            Has_Publications: applicationData.hasPublications ? "Ha" : "Yo'q",
+            Used_Previous_Grants: applicationData.usedPreviousGrants ? "Ha" : "Yo'q",
+            Previous_Grant_Details: applicationData.previousGrantDetails || "",
+
+            // Shartnoma va Oila
+            Contract_Amount: applicationData.contractAmount,
+            Family_Members_Count: applicationData.familyMembersCount,
+
+            // Ota-onasi haqida
+            Father_Name: applicationData.fatherFullName || "",
+            Father_Work: applicationData.fatherWorkPlace || "",
+            Father_Position: applicationData.fatherPosition || "",
+            Father_Birth: applicationData.fatherBirthDate || "",
+            Mother_Name: applicationData.motherFullName || "",
+            Mother_Work: applicationData.motherWorkPlace || "",
+            Mother_Position: applicationData.motherPosition || "",
+            Mother_Birth: applicationData.motherBirthDate || "",
+
+            // Aka-ukalar massivining soni
+            Siblings_Count: applicationData.siblings ? applicationData.siblings.length : 0,
+
+            // Motivatsiya xati
+            Motivation_Letter: applicationData.motivationLetter,
+
+            // Fayllar linklari
+            CV_File: applicationData.cvFile,
+            GPA_File: applicationData.gpaFile,
+            University_Certificate: applicationData.universityCertificate,
+            Passport_File: applicationData.passportFile,
+
+            // Status va vaqt
+            Status: applicationData.status,
+            Sana: new Date().toLocaleString()
+        });
+
+        console.log("Hamma ma'lumotlar Google Sheetga muvaffaqiyatli saqlandi!");
+    } catch (sheetError) {
+        console.error("Google Sheets Xatoligi:", sheetError.message);
+    }
+}
+async function updateGoogleSheetStatus(usernameId, newStatus) {
+    try {
+        const serviceAccountAuth = new JWT({
+            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
+        await doc.loadInfo();
+        const sheet = doc.sheetsByIndex[0];
+
+        // 1. Google Sheet-dagi barcha qatorlarni o'qib olamiz
+        const rows = await sheet.getRows();
+
+        // 2. Ichidan aynan biz qidirayotgan usernameId ga teng bo'lgan qatorni topamiz
+        const rowToUpdate = rows.find(row => row.get('Username_ID') === usernameId);
+
+        if (rowToUpdate) {
+            // 3. Status ustuniga yangi qiymatni yozamiz
+            rowToUpdate.set('Status', newStatus);
+            
+            // 4. O'zgarishni Google Sheet-da saqlaymiz
+            await rowToUpdate.save();
+            console.log(`Google Sheet-da ${usernameId} uchun status ${newStatus} ga yangilandi!`);
+        } else {
+            console.log("Google Sheet-dan bunday foydalanuvchi topilmadi.");
+        }
+    } catch (sheetError) {
+        console.error("Google Sheet-ni yangilashda xatolik:", sheetError.message);
+    }
+}
+
+module.exports = {
+    add: async (req, res) => {
+        try {
+            const {
+                usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+                passportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+                researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+                previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+                fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+                motherBirthDate, siblings, motivationLetter,
+                cvFile, gpaFile, universityCertificate, passportFile
+            } = req.body;
+
+            // 1. Majburiy maydonlarni to'liq tekshirish
+            if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !passportDetails || !universityName || !motivationLetter) {
+                return res.send({
+                    ok: false,
+                    msg: "Iltimos, barcha majburiy maydonlarni to'ldiring!"
+                });
+            }
+
+            if (!passportDetails.passportSeria || !passportDetails.passportNumber || !passportDetails.jshshir || !passportDetails.givenDate || !passportDetails.expiresDate || !passportDetails.givenBy) {
+                return res.send({
+                    ok: false,
+                    msg: "Pasport ma'lumotlari to'liq kiritilishi shart!"
+                });
+            }
+
+            // Majburiy fayllar tekshiruvi
+            if (!cvFile || !gpaFile || !universityCertificate || !passportFile) {
+                return res.send({
+                    ok: false,
+                    msg: "Iltimos, barcha so'ralgan hujjatlarni (fayllarni) yuklang!"
+                });
+            }
+
+            // 2. Takroriy arizani tekshirish
+            const existingApplication = await Application.findOne({ usernameId });
+            if (existingApplication) {
+                return res.send({
+                    ok: false,
+                    msg: "Siz allaqachon ariza yuborgansiz!"
+                });
+            }
+
+            // 3. Ma'lumotlarni bazaga yozish
+            const newApplication = new Application({
+                usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+                passportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+                researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+                previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+                fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+                motherBirthDate, siblings, motivationLetter, cvFile, gpaFile, universityCertificate, passportFile
+            });
+
+            const savedApplication = await newApplication.save();
+
+            // 4. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
+            await addToGoogleSheet(savedApplication);
+
+            return res.send({
+                ok: true,
+                msg: "Arizangiz muvaffaqiyatli qabul qilindi va bazaga hamda Google Sheetga yozildi!"
+            });
+
+        } catch (err) {
+            console.error("Xatolik:", err);
+            return res.send({
+                ok: false,
+                msg: err.message || "Arizani saqlashda kutilmagan xatolik yuz berdi."
+            });
+        }
+    },
+    updateStatus: async (req, res) => {
+        try {
+            // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
+            const { usernameId, status } = req.body;
+
+            // 1. Kiruvchi ma'lumotlarni tekshiramiz
+            if (!usernameId || !status) {
+                return res.send({
+                    ok: false,
+                    msg: "Foydalanuvchi ID-si (usernameId) va yangi status kiritilishi shart!"
+                });
+            }
+
+            // 2. Status faqat ruxsat etilgan qiymatlardan biri ekanligini tekshiramiz
+            // Rad etilishidan qaytarish -> 'pending' hisoblanadi
+            const allowedStatuses = ['pending', 'approved', 'rejected'];
+            if (!allowedStatuses.includes(status)) {
+                return res.send({
+                    ok: false,
+                    msg: "Xato status! Status faqat 'pending', 'approved' yoki 'rejected' bo'lishi mumkin."
+                });
+            }
+
+            // 3. MongoDB bazasidan arizani qidirib topib, statusini yangilaymiz
+            const updatedApplication = await Application.findOneAndUpdate(
+                { usernameId: usernameId }, // qidiruv sharti
+                { status: status },         // yangilanadigan maydon
+                { new: true }               // bizga yangilangan yangi ma'lumotni qaytarsin
+            );
+
+            // Agar bazadan bunday ariza topilmasa
+            if (!updatedApplication) {
+                return res.send({
+                    ok: false,
+                    msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+                });
+            }
+
+            // 4. Baza muvaffaqiyatli yangilangach, Google Sheet-ni ham yangilaymiz
+            await updateGoogleSheetStatus(usernameId, status);
+
+            // 5. Adminga chiroyli javob qaytaramiz
+            let statusUz = status === 'approved' ? 'Qabul qilindi' : status === 'rejected' ? 'Rad etildi' : 'Kutilmoqda (Qaytarildi)';
+            
+            return res.send({
+                ok: true,
+                msg: `Ariza statusi muvaffaqiyatli o'zgartirildi: ${statusUz}`,
+                data: updatedApplication
+            });
+
+        } catch (err) {
+            console.error("Statusni yangilashda xatolik:", err);
+            return res.send({
+                ok: false,
+                msg: err.message || "Statusni yangilashda kutilmagan xatolik yuz berdi."
+            });
+        }
+    }
+};
