@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.3",
     "md5": "^2.3.0",
     "mongoose": "^9.2.2",
+    "multer": "^2.2.0",
     "mysql2": "^3.18.1"
   },
   "devDependencies": {
