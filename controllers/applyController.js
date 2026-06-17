@@ -115,7 +115,8 @@ async function updateGoogleSheetStatus(usernameId, newStatus) {
     }
 }
 const fs = require("fs");
-const md5 = require('md5')
+const md5 = require('md5');
+const applicationModel = require("../models/applicationModel.js");
 module.exports = {
     add: async (req, res) => {
         try {
@@ -128,7 +129,7 @@ module.exports = {
                 fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
                 motherBirthDate, siblings, motivationLetter
             } = req.body;
-
+            
             // Fayllar req.files ichida keladi
             const files = req.files;
 
@@ -344,5 +345,46 @@ module.exports = {
                 msg: err.message || "Arizalarni o'chirishda kutilmagan xatolik yuz berdi."
             });
         }
+    },
+    getOne: async (req, res) => {
+    try {
+        // URL parametridan yoki request body'dan usernameId ni olamiz
+        // (Odatda GET so'rovlarida parametr orqali /api/applications/:usernameId ko'rinishida keladi)
+        const usernameId = req.params.usernameId || req.body.usernameId;
+
+        // ID kiritilganini tekshiramiz
+        if (!usernameId) {
+            return res.send({
+                ok: false,
+                msg: "Foydalanuvchi ID-si (usernameId) kiritilishi shart!"
+            });
+        }
+
+        // MongoDB bazasidan arizani qidiramiz
+        const application = await Application.findOne({ usernameId: usernameId });
+
+        // Agar ariza topilmasa
+        if (!application) {
+            return res.send({
+                ok: false,
+                msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+            });
+        }
+
+        // Ariza muvaffaqiyatli topilsa, uni qaytaramiz
+        return res.send({
+            ok: true,
+            msg: "Ariza muvaffaqiyatli topildi!",
+            data: application
+        });
+
+    } catch (err) {
+        console.error("GetOne Xatolik:", err);
+        return res.send({
+            ok: false,
+            msg: err.message || "Arizani yuklashda kutilmagan xatolik yuz berdi."
+        });
     }
+}
+    
 };

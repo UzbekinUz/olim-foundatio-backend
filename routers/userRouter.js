@@ -1,4 +1,8 @@
 const applicationController = require('../controllers/applicationController')
+const userWare = require('../middlewares/userWare')
 module.exports = require('express')()
 .post('/add', applicationController.add)
 .get('/getall', applicationController.getAll)
+.get('/check',userWare, applicationController.check)
+.post("/signin", applicationController.signin)
+.delete("/delete",userWare, applicationController.leave)
