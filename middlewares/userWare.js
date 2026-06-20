@@ -6,6 +6,7 @@ module.exports = (req, res, next) => {
         res.send({
             ok: false,
             msg: "Avtorizatsiya qiling!"
+            
         });
     } else {
         JWT.verify(token, process.env.JWT_USER_SECRET, async (err, payload) => {

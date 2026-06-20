@@ -134,6 +134,7 @@ module.exports = {
         const { usernameId } = req.user;
         const $user = await applicationModel.findOne({ _id: usernameId });
         $user.set({ access_token: 'none' }).save();
+        
         res.send({
             ok: true,
             msg: "Profildan chiqish amalga oshdi!"
