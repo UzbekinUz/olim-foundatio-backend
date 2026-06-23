@@ -114,6 +114,39 @@ async function updateGoogleSheetStatus(usernameId, newStatus) {
         console.error("Google Sheet-ni yangilashda xatolik:", sheetError.message);
     }
 }
+
+async function updateGoogleSheetWinner(usernameId, status) {
+    try {
+        const serviceAccountAuth = new JWT({
+            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
+        await doc.loadInfo();
+        const sheet = doc.sheetsByIndex[0];
+
+        // 1. Google Sheet-dagi barcha qatorlarni o'qib olamiz
+        const rows = await sheet.getRows();
+
+        // 2. Ichidan aynan biz qidirayotgan usernameId ga teng bo'lgan qatorni topamiz
+        const rowToUpdate = rows.find(row => row.get('Username_ID') === usernameId);
+
+        if (rowToUpdate) {
+            // 3. Status ustuniga yangi qiymatni yozamiz
+            rowToUpdate.set('isWinner', status);
+
+            // 4. O'zgarishni Google Sheet-da saqlaymiz
+            await rowToUpdate.save();
+        } else {
+            console.log("Google Sheet-dan bunday foydalanuvchi topilmadi.");
+        }
+    } catch (sheetError) {
+        console.error("Google Sheet-ni yangilashda xatolik:", sheetError.message);
+    }
+}
+
 const fs = require("fs");
 const md5 = require('md5');
 const applicationModel = require("../models/applicationModel.js");
@@ -129,7 +162,7 @@ module.exports = {
                 fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
                 motherBirthDate, siblings, motivationLetter
             } = req.body;
-            
+
             // Fayllar req.files ichida keladi
             const files = req.files;
 
@@ -347,44 +380,87 @@ module.exports = {
         }
     },
     getOne: async (req, res) => {
-    try {
-        // URL parametridan yoki request body'dan usernameId ni olamiz
-        // (Odatda GET so'rovlarida parametr orqali /api/applications/:usernameId ko'rinishida keladi)
-        const usernameId = req.params.usernameId || req.body.usernameId;
+        try {
+            // URL parametridan yoki request body'dan usernameId ni olamiz
+            // (Odatda GET so'rovlarida parametr orqali /api/applications/:usernameId ko'rinishida keladi)
+            const usernameId = req.params.usernameId || req.body.usernameId;
 
-        // ID kiritilganini tekshiramiz
-        if (!usernameId) {
+            // ID kiritilganini tekshiramiz
+            if (!usernameId) {
+                return res.send({
+                    ok: false,
+                    msg: "Foydalanuvchi ID-si (usernameId) kiritilishi shart!"
+                });
+            }
+
+            // MongoDB bazasidan arizani qidiramiz
+            const application = await Application.findOne({ usernameId: usernameId });
+
+            // Agar ariza topilmasa
+            if (!application) {
+                return res.send({
+                    ok: false,
+                    msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+                });
+            }
+
+            // Ariza muvaffaqiyatli topilsa, uni qaytaramiz
+            return res.send({
+                ok: true,
+                msg: "Ariza muvaffaqiyatli topildi!",
+                data: application
+            });
+
+        } catch (err) {
+            console.error("GetOne Xatolik:", err);
             return res.send({
                 ok: false,
-                msg: "Foydalanuvchi ID-si (usernameId) kiritilishi shart!"
+                msg: err.message || "Arizani yuklashda kutilmagan xatolik yuz berdi."
             });
         }
+    },
+    updateWinner: async (req, res) => {
+        try {
+            // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
+            const { usernameId, status } = req.body;
 
-        // MongoDB bazasidan arizani qidiramiz
-        const application = await Application.findOne({ usernameId: usernameId });
+            // 1. Kiruvchi ma'lumotlarni tekshiramiz
+            if (!usernameId || !status) {
+                return res.send({
+                    ok: false,
+                    msg: "Foydalanuvchi ID-si (usernameId) kiritilmadi"
+                });
+            }
+            // 3. MongoDB bazasidan arizani qidirib topib, statusini yangilaymiz
+            const updatedApplication = await Application.findOneAndUpdate(
+                { usernameId: usernameId }, // qidiruv sharti
+                { isWinner: status },         // yangilanadigan maydon
+                { new: true }               // bizga yangilangan yangi ma'lumotni qaytarsin
+            );
 
-        // Agar ariza topilmasa
-        if (!application) {
+            // Agar bazadan bunday ariza topilmasa
+            if (!updatedApplication) {
+                return res.send({
+                    ok: false,
+                    msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+                });
+            }
+
+            // 4. Baza muvaffaqiyatli yangilangach, Google Sheet-ni ham yangilaymiz
+            await updateGoogleSheetWinner(usernameId, status);
+
+            return res.send({
+                ok: true,
+                msg: `Good done`
+            });
+
+        } catch (err) {
+            console.error("Yangilashda xatolik:", err);
             return res.send({
                 ok: false,
-                msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+                msg: err.message || "Yangilashda kutilmagan xatolik yuz berdi."
             });
         }
-
-        // Ariza muvaffaqiyatli topilsa, uni qaytaramiz
-        return res.send({
-            ok: true,
-            msg: "Ariza muvaffaqiyatli topildi!",
-            data: application
-        });
-
-    } catch (err) {
-        console.error("GetOne Xatolik:", err);
-        return res.send({
-            ok: false,
-            msg: err.message || "Arizani yuklashda kutilmagan xatolik yuz berdi."
-        });
     }
-}
-    
+
 };

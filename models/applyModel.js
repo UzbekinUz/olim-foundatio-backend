@@ -80,7 +80,8 @@ const ApplicationSchema = new mongoose.Schema({
         default: 'pending'
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    isWinner:false
 });
 
 const Application = mongoose.model('Application', ApplicationSchema);
