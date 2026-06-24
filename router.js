@@ -3,4 +3,4 @@ module.exports = require('express')()
 .use('/apply',require('./routers/applyRouter'))
 .use('/news',require('./routers/newsRouter'))
 .use('/webdata',require('./routers/webRouter'))
-
+.use('/chiodata',require('./routers/chioRouter'))

@@ -2,6 +2,8 @@ const Application = require("../models/applyModel.js");
 const { JWT } = require("google-auth-library");
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const path = require('path')
+process.env.NODE_ENV !== 'production' ? require('dotenv').config({ path: '.env' }) : null;
+const SiteLink = process.env.SITE_LINK
 // Barcha ma'lumotlarni Google Sheetga yozuvchi funksiya
 async function addToGoogleSheet(applicationData) {
     try {
@@ -69,14 +71,15 @@ async function addToGoogleSheet(applicationData) {
             Motivation_Letter: applicationData.motivationLetter,
 
             // Fayllar linklari
-            CV_File: applicationData.cvFile,
-            GPA_File: applicationData.gpaFile,
-            University_Certificate: applicationData.universityCertificate,
-            Passport_File: applicationData.passportFile,
+            CV_File: `${SiteLink}applicationData.cvFile`,
+            GPA_File: `${SiteLink}applicationData.gpaFile`,
+            University_Certificate: `${SiteLink}applicationData.universityCertificate`,
+            Passport_File: `${SiteLink}applicationData.passportFile`,
 
             // Status va vaqt
             Status: applicationData.status,
-            Sana: new Date().toLocaleString()
+            Sana: new Date().toLocaleString(),
+            iswinner: applicationData.isWinner
         });
 
     } catch (sheetError) {
