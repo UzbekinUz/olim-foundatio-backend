@@ -1,13 +1,13 @@
 const JWT = require('jsonwebtoken');
-const clientModel = require('../models/chio/clientModel');
+const clientModel = require('../models/chio/barberModel');
+const orderModel = require('../models/chio/orderModel');
 module.exports = (req, res, next) => {
-    const token = req.headers['x-client-token'];
-    
+    const token = req.headers['x-barber-token'];
     if (!token) {
         res.send({
             ok: false,
             msg: "Avtorizatsiya qiling!"
-            
+
         });
     } else {
         JWT.verify(token, process.env.JWT_USER_SECRET, async (err, payload) => {
@@ -17,23 +17,22 @@ module.exports = (req, res, next) => {
                     msg: err
                 });
             } else {
-                const { clientId } = payload;
-                const $admin = await clientModel.findOne({ _id: clientId });
+                const { id } = payload;
+                const $admin = await clientModel.findOne({ _id: id });
                 if (!$admin) {
                     res.send({
                         ok: false,
                         msg: "Foydalanuvchi topilmadi"
                     })
-                }else if($admin.access_token !== token){
-                    console.log(token);
-                    console.log($admin);
+                } else if ($admin.access_token !== token) {
                     res.send({
                         ok: false,
                         msg: "Qurulmada sessiya yakunlangan! Qayta avtorizatsiya qiling!"
                     })
                 } else {
-                    const { _id, name, phone } = $admin;
-                    req.user = {clientId:_id, name, phone };
+                    const { _id, phone, photo, name, date,editor,password } = $admin;
+                    const $orders = await orderModel.find({ barberId: _id })
+                    req.user = { id: _id, phone, photo, name, date, orders: $orders,editor,password };
                     next();
                 }
             }

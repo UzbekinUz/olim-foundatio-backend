@@ -1,9 +1,19 @@
 module.exports= require('mongoose').model('ChioBarber',{
     name:String,
+    photo:String,
     phone:String,
     orders:Array,
     date:String,
     password:String,
     table:String,
-    rank:String
+    rank:String,
+    access_token:String,
+    editor:{
+        type:Boolean,
+        default:false
+    },
+    isWorking:{
+        type:Boolean,
+        default:true
+    }
 })

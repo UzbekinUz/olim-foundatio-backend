@@ -1,5 +1,9 @@
 module.exports= require('mongoose').model('ChioService',{
     title:String,
     price:String,
-    status:true
+    status:{
+        type:String,
+        default:true
+    },
+    timeTakes:String
 })
