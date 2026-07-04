@@ -169,6 +169,7 @@ module.exports = {
 
             // Fayllar req.files ichida keladi
             const files = req.files;
+            console.log("Fayllar:", files);
 
             // 1. Majburiy matnli maydonlarni to'liq tekshirish
             if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
@@ -225,8 +226,8 @@ module.exports = {
             const gpaPath = `/public/applications/${md5(files.gpaFile.name + new Date())}_gpa.pdf`;
             const certPath = `/public/applications/${md5(files.universityCertificate.name + new Date())}_cert.pdf`;
             const passportPath = `/public/applications/${md5(files.passportFile.name + new Date())}_passport.jpg`;
-            const imtiyozPath = `/public/applications/${md5(files.imtiyoz.name + new Date())}_imtiyoz.pdf`;
-
+            const imtiyozPath = `/public/applications/${md5(files.privilegeFile.name + new Date())}_imtiyoz.pdf`;
+            
 
             // Siblings (Massiv) ma'lumotini parslash
             let parsedSiblings = siblings;
@@ -257,7 +258,7 @@ module.exports = {
             await files.gpaFile.mv(`.${gpaPath}`);
             await files.universityCertificate.mv(`.${certPath}`);
             await files.passportFile.mv(`.${passportPath}`);
-            await files.imtiyoz.mv(`.${imtiyozPath}`);
+            await files.privilegeFile.mv(`.${imtiyozPath}`);
 
 
             // 6. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
