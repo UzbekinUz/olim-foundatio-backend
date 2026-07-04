@@ -198,7 +198,7 @@ module.exports = {
             }
 
             // 2. Majburiy 4 ta fayl kelganini tekshirish
-            if (!files || !files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile ||!files.imtiyoz) {
+            if (!files || !files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
                 return res.send({
                     ok: false,
                     msg: "Iltimos, barcha so'ralgan 5 ta hujjatni (fayllarni) yuklang!"
