@@ -1023,10 +1023,10 @@ module.exports = {
                     $lte: threeDaysLater.toISOString()
                 }
             });
-
+            const $barber = await ChioBarberModel.findOne({_id:barberId})
             // 3. Salonning ish vaqti sozlamalari (09:00 dan 21:00 gacha)
-            const START_HOUR = 9;
-            const END_HOUR = 21;
+            const START_HOUR = $barber.workStart;
+            const END_HOUR = $barber.workEnd;
             const TIME_STEP = 30; // Har 30 daqiqada yangi slot yaratib tekshiriladi
 
             const result = [];
@@ -1109,6 +1109,49 @@ module.exports = {
                 msg: err.message || "Kutilmagan server xatoligi."
             });
         }
+    },
+
+    addBusy:async (req, res) => {
+    try {
+        const { clientId, barberId, timeTakes, appointmentDate, status } = req.body;
+
+        // Majburiy maydonlarni tekshirish (totalPrice olib tashlandi, chunki uni o'zimiz hisoblaymiz)
+        if (!clientId || !barberId || !appointmentDate ||!timeTakes) {
+            return res.send({
+                ok: false,
+                msg: "Iltimos, barcha majburiy maydonlarni to'ldiring (clientId, barberId, appointmentDate)!"
+            });
+        }
+
+
+        // ------------------------------------
+
+        // Yangi buyurtma obyektini yaratish
+        const newOrder = new ChioOrderModel({
+            clientId,
+            barberId,
+            servicesId: [],
+            totalPrice: 0, // Dinamik hisoblangan narx
+            appointmentDate,
+            status: status || 'pending',
+            timeTakes // Hisoblangan jami vaqt (Masalan: "75")
+        });
+
+        const savedOrder = await newOrder.save();
+
+        return res.send({
+            ok: true,
+            msg: "Buyurtma muvaffaqiyatli yaratildi, jami vaqt va narx hisoblandi!",
+            data: savedOrder
+        });
+
+    } catch (err) {
+        console.error("Buyurtma yaratishda xatolik:", err);
+        return res.send({
+            ok: false,
+            msg: err.message || "Buyurtmani saqlashda kutilmagan xatolik yuz berdi."
+        });
     }
+}
 
 };

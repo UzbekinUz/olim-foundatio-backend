@@ -73,6 +73,7 @@ const ApplicationSchema = new mongoose.Schema({
     gpaFile: { type: String, required: true },
     universityCertificate: { type: String, required: true },
     passportFile: { type: String, required: true },
+    imtiyoz:{ type: String, required: true } ,
 
     status: {
         type: String,
@@ -81,7 +82,9 @@ const ApplicationSchema = new mongoose.Schema({
     }
 }, {
     timestamps: true,
-    isWinner:false
+    isWinner:false,
+    comment:String
+
 });
 
 const Application = mongoose.model('Application', ApplicationSchema);

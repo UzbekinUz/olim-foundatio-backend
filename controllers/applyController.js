@@ -65,21 +65,22 @@ async function addToGoogleSheet(applicationData) {
             Mother_Birth: applicationData.motherBirthDate || "",
 
             // Aka-ukalar massivining soni
-            Siblings_Count: applicationData.siblings ? applicationData.siblings.length : 0,
+            Imtiyoz_File: `${SiteLink}${applicationData.imtiyoz}`,
 
             // Motivatsiya xati
             Motivation_Letter: applicationData.motivationLetter,
 
             // Fayllar linklari
-            CV_File: `${SiteLink}applicationData.cvFile`,
-            GPA_File: `${SiteLink}applicationData.gpaFile`,
-            University_Certificate: `${SiteLink}applicationData.universityCertificate`,
-            Passport_File: `${SiteLink}applicationData.passportFile`,
+            CV_File: `${SiteLink}${applicationData.cvFile}`,
+            GPA_File: `${SiteLink}${applicationData.gpaFile}`,
+            University_Certificate: `${SiteLink}${applicationData.universityCertificate}`,
+            Passport_File: `${SiteLink}${applicationData.passportFile}`,
 
             // Status va vaqt
             Status: applicationData.status,
             Sana: new Date().toLocaleString(),
-            iswinner: applicationData.isWinner
+            iswinner: applicationData.isWinner,
+            
         });
 
     } catch (sheetError) {
@@ -197,10 +198,10 @@ module.exports = {
             }
 
             // 2. Majburiy 4 ta fayl kelganini tekshirish
-            if (!files || !files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
+            if (!files || !files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile ||!files.imtiyoz) {
                 return res.send({
                     ok: false,
-                    msg: "Iltimos, barcha so'ralgan 4 ta hujjatni (fayllarni) yuklang!"
+                    msg: "Iltimos, barcha so'ralgan 5 ta hujjatni (fayllarni) yuklang!"
                 });
             }
 
@@ -224,6 +225,8 @@ module.exports = {
             const gpaPath = `/public/applications/${md5(files.gpaFile.name + new Date())}_gpa.pdf`;
             const certPath = `/public/applications/${md5(files.universityCertificate.name + new Date())}_cert.pdf`;
             const passportPath = `/public/applications/${md5(files.passportFile.name + new Date())}_passport.jpg`;
+            const imtiyozPath = `/public/applications/${md5(files.imtiyoz.name + new Date())}_imtiyoz.pdf`;
+
 
             // Siblings (Massiv) ma'lumotini parslash
             let parsedSiblings = siblings;
@@ -242,7 +245,8 @@ module.exports = {
                 cvFile: cvPath,
                 gpaFile: gpaPath,
                 universityCertificate: certPath,
-                passportFile: passportPath
+                passportFile: passportPath,
+                imtiyoz: imtiyozPath
             });
 
             // Bazaga saqlaymiz
@@ -253,6 +257,8 @@ module.exports = {
             await files.gpaFile.mv(`.${gpaPath}`);
             await files.universityCertificate.mv(`.${certPath}`);
             await files.passportFile.mv(`.${passportPath}`);
+            await files.imtiyoz.mv(`.${imtiyozPath}`);
+
 
             // 6. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
             if (typeof addToGoogleSheet === 'function') {
@@ -261,7 +267,7 @@ module.exports = {
 
             return res.send({
                 ok: true,
-                msg: "Arizangiz muvaffaqiyatli qabul qilindi va bazaga hamda Google Sheetga yozildi!"
+                msg: "Arizangiz muvaffaqiyatli jo'natildi!"
             });
 
         } catch (err) {
@@ -275,10 +281,10 @@ module.exports = {
     updateStatus: async (req, res) => {
         try {
             // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
-            const { usernameId, status } = req.body;
+            const { usernameId, status, comment } = req.body;
 
             // 1. Kiruvchi ma'lumotlarni tekshiramiz
-            if (!usernameId || !status) {
+            if (!usernameId || !status ) {
                 return res.send({
                     ok: false,
                     msg: "Foydalanuvchi ID-si (usernameId) va yangi status kiritilishi shart!"
@@ -298,7 +304,7 @@ module.exports = {
             // 3. MongoDB bazasidan arizani qidirib topib, statusini yangilaymiz
             const updatedApplication = await Application.findOneAndUpdate(
                 { usernameId: usernameId }, // qidiruv sharti
-                { status: status },         // yangilanadigan maydon
+                { status: status, comment: comment },
                 { new: true }               // bizga yangilangan yangi ma'lumotni qaytarsin
             );
 

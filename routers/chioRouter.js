@@ -33,3 +33,4 @@ module.exports = require('express')()
 .put('/order/changeStatus', chioController.changeStatus)
 //Mayda chuydalar
 .post('/table/checkAvailable', chioController.getAvailableSlots)
+.post('/barber/addbusy', chioController.addBusy)

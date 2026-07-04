@@ -15,5 +15,13 @@ module.exports= require('mongoose').model('ChioBarber',{
     isWorking:{
         type:Boolean,
         default:true
+    },
+    workStart:{
+        type:Number,
+        default:9
+    },
+    workEnd:{
+        type:Number,
+        default:21
     }
 })
