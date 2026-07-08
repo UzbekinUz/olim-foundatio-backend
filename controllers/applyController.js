@@ -26,7 +26,7 @@ async function addToGoogleSheet(applicationData) {
             Birth_Date: applicationData.birthDate,
             Nationality: applicationData.nationality,
             Permanent_Address: applicationData.permanentAddress,
-            Phone: applicationData.phoneNumber,
+            Phone: applicationData.phoneNumber ? applicationData.phoneNumber.replace(/^\+/, '') : '',
             Email: applicationData.emailAddress,
 
             // Pasport ob'ekti ichidagilar
