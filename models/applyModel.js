@@ -73,17 +73,25 @@ const ApplicationSchema = new mongoose.Schema({
     gpaFile: { type: String, required: true },
     universityCertificate: { type: String, required: true },
     passportFile: { type: String, required: true },
-    imtiyoz:{ type: String, required: true } ,
+    imtiyoz: { type: String, required: true },
 
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],
         default: 'pending'
+    },
+    isWinner: {
+        type: Boolean,
+        default: false
+    },
+    comment: String,
+    action: {
+        type: String,
+        default: 'Tekshirishga yuborilgan',
     }
 }, {
     timestamps: true,
-    isWinner:false,
-    comment:String
+
 
 });
 

@@ -164,12 +164,11 @@ module.exports = {
                 researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
                 previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
                 fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-                motherBirthDate, siblings, motivationLetter
+                motherBirthDate, siblings, motivationLetter, action
             } = req.body;
 
             // Fayllar req.files ichida keladi
             const files = req.files;
-            console.log("Fayllar:", files);
 
             // 1. Majburiy matnli maydonlarni to'liq tekshirish
             if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
@@ -225,7 +224,7 @@ module.exports = {
             const cvPath = `/public/applications/${md5(files.cvFile.name + new Date())}_cv.pdf`;
             const gpaPath = `/public/applications/${md5(files.gpaFile.name + new Date())}_gpa.pdf`;
             const certPath = `/public/applications/${md5(files.universityCertificate.name + new Date())}_cert.pdf`;
-            const passportPath = `/public/applications/${md5(files.passportFile.name + new Date())}_passport.jpg`;
+            const passportPath = `/public/applications/${md5(files.passportFile.name + new Date())}_passport.pdf`;
             const imtiyozPath = `/public/applications/${md5(files.privilegeFile.name + new Date())}_imtiyoz.pdf`;
             
 
@@ -247,7 +246,8 @@ module.exports = {
                 gpaFile: gpaPath,
                 universityCertificate: certPath,
                 passportFile: passportPath,
-                imtiyoz: imtiyozPath
+                imtiyoz: imtiyozPath,
+                action: action
             });
 
             // Bazaga saqlaymiz
@@ -282,7 +282,7 @@ module.exports = {
     updateStatus: async (req, res) => {
         try {
             // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
-            const { usernameId, status, comment } = req.body;
+            const { usernameId, status, comment, action } = req.body;
 
             // 1. Kiruvchi ma'lumotlarni tekshiramiz
             if (!usernameId || !status ) {
@@ -305,8 +305,8 @@ module.exports = {
             // 3. MongoDB bazasidan arizani qidirib topib, statusini yangilaymiz
             const updatedApplication = await Application.findOneAndUpdate(
                 { usernameId: usernameId }, // qidiruv sharti
-                { status: status, comment: comment },
-                { new: true }               // bizga yangilangan yangi ma'lumotni qaytarsin
+                { status: status, comment: comment, action: action },         // yangilanadigan maydonlar
+                { returnDocument: 'after' }               // bizga yangilangan yangi ma'lumotni qaytarsin
             );
 
             // Agar bazadan bunday ariza topilmasa
@@ -432,7 +432,7 @@ module.exports = {
     updateWinner: async (req, res) => {
         try {
             // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
-            const { usernameId, status } = req.body;
+            const { usernameId, status,action } = req.body;
 
             // 1. Kiruvchi ma'lumotlarni tekshiramiz
             if (!usernameId || !status) {
@@ -444,8 +444,8 @@ module.exports = {
             // 3. MongoDB bazasidan arizani qidirib topib, statusini yangilaymiz
             const updatedApplication = await Application.findOneAndUpdate(
                 { usernameId: usernameId }, // qidiruv sharti
-                { isWinner: status },         // yangilanadigan maydon
-                { new: true }               // bizga yangilangan yangi ma'lumotni qaytarsin
+                { isWinner: status, action: action },         // yangilanadigan maydon
+                { returnDocument: 'after' }               // bizga yangilangan yangi ma'lumotni qaytarsin
             );
 
             // Agar bazadan bunday ariza topilmasa
