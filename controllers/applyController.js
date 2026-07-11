@@ -87,6 +87,7 @@ async function addToGoogleSheet(applicationData) {
         console.error("Google Sheets Xatoligi:", sheetError.message);
     }
 }
+
 async function updateGoogleSheetStatus(usernameId, newStatus) {
     try {
         const serviceAccountAuth = new JWT({
@@ -156,129 +157,286 @@ const md5 = require('md5');
 const applicationModel = require("../models/applicationModel.js");
 module.exports = {
     add: async (req, res) => {
-        try {
-            // express-fileupload'da matnli ma'lumotlar req.body ichida keladi
-            const {
-                usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
-                passportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
-                researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
-                previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
-                fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-                motherBirthDate, siblings, motivationLetter, action
-            } = req.body;
+    try {
+        // express-fileupload'da matnli ma'lumotlar req.body ichida keladi
+        const {
+            usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+            passportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+            researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+            previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+            fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+            motherBirthDate, siblings, motivationLetter, action
+        } = req.body;
 
-            // Fayllar req.files ichida keladi
-            const files = req.files;
+        // Fayllar kelmasa bo'sh obyekt qilib olamiz (Crash bo'lishini oldini oladi)
+        const files = req.files || {};
 
-            // 1. Majburiy matnli maydonlarni to'liq tekshirish
-            if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
-                return res.send({
-                    ok: false,
-                    msg: "Iltimos, barcha majburiy matnli maydonlarni to'ldiring!"
-                });
-            }
-
-            // Pasport obyektini xavfsiz parslash (Frontend string qilib yuborgan bo'lsa)
-            let parsedPassportDetails = {};
-            if (passportDetails) {
-                try {
-                    parsedPassportDetails = typeof passportDetails === 'string'
-                        ? JSON.parse(passportDetails)
-                        : passportDetails;
-                } catch (e) {
-                    return res.send({ ok: false, msg: "Pasport ma'lumotlari formati noto'g'ri!" });
-                }
-            }
-
-            if (!parsedPassportDetails.passportSeria || !parsedPassportDetails.passportNumber || !parsedPassportDetails.jshshir || !parsedPassportDetails.givenDate || !parsedPassportDetails.expiresDate || !parsedPassportDetails.givenBy) {
-                return res.send({
-                    ok: false,
-                    msg: "Pasport ma'lumotlari to'liq kiritilishi shart!"
-                });
-            }
-
-            // 2. Majburiy 4 ta fayl kelganini tekshirish
-            if (!files || !files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
-                return res.send({
-                    ok: false,
-                    msg: "Iltimos, barcha so'ralgan 5 ta hujjatni (fayllarni) yuklang!"
-                });
-            }
-
-            // 3. Takroriy arizani tekshirish (Bazadan)
-            const existingApplication = await Application.findOne({ usernameId });
-            if (existingApplication) {
-                return res.send({
-                    ok: false,
-                    msg: "Siz allaqachon ariza yuborgansiz!"
-                });
-            }
-
-            // Fayllar saqlanadigan papka mavjudligini tekshirish, bo'lmasa yaratish
-            const dirPath = './public/applications';
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true });
-            }
-
-            // Fayllar uchun unikal nom va saqlash yo'llarini (path) yaratish
-            const cvPath = `/public/applications/${md5(files.cvFile.name + new Date())}_cv.pdf`;
-            const gpaPath = `/public/applications/${md5(files.gpaFile.name + new Date())}_gpa.pdf`;
-            const certPath = `/public/applications/${md5(files.universityCertificate.name + new Date())}_cert.pdf`;
-            const passportPath = `/public/applications/${md5(files.passportFile.name + new Date())}_passport.pdf`;
-            const imtiyozPath = `/public/applications/${md5(files.privilegeFile.name + new Date())}_imtiyoz.pdf`;
-            
-
-            // Siblings (Massiv) ma'lumotini parslash
-            let parsedSiblings = siblings;
-            if (typeof siblings === 'string' && siblings.trim() !== '') {
-                try { parsedSiblings = JSON.parse(siblings); } catch (e) { parsedSiblings = []; }
-            }
-
-            // 4. Ma'lumotlarni bazaga yozish (fayl yo'llari bilan birga)
-            const newApplication = new Application({
-                usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
-                passportDetails: parsedPassportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
-                researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
-                previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
-                fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-                motherBirthDate, siblings: parsedSiblings, motivationLetter,
-                cvFile: cvPath,
-                gpaFile: gpaPath,
-                universityCertificate: certPath,
-                passportFile: passportPath,
-                imtiyoz: imtiyozPath,
-                action: action
-            });
-
-            // Bazaga saqlaymiz
-            const savedApplication = await newApplication.save();
-
-            // 5. Fayllarni haqiqatda server xotirasiga ko'chirish (.mv() orqali)
-            await files.cvFile.mv(`.${cvPath}`);
-            await files.gpaFile.mv(`.${gpaPath}`);
-            await files.universityCertificate.mv(`.${certPath}`);
-            await files.passportFile.mv(`.${passportPath}`);
-            await files.privilegeFile.mv(`.${imtiyozPath}`);
-
-
-            // 6. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
-            if (typeof addToGoogleSheet === 'function') {
-                await addToGoogleSheet(savedApplication);
-            }
-
-            return res.send({
-                ok: true,
-                msg: "Arizangiz muvaffaqiyatli jo'natildi!"
-            });
-
-        } catch (err) {
-            console.error("Xatolik:", err);
+        // 1. Majburiy matnli maydonlarni to'liq tekshirish
+        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
             return res.send({
                 ok: false,
-                msg: err.message || "Arizani saqlashda kutilmagan xatolik yuz berdi."
+                msg: "Iltimos, barcha majburiy matnli maydonlarni to'ldiring!"
             });
         }
-    },
+
+        // Pasport obyektini xavfsiz parslash (Frontend string qilib yuborgan bo'lsa)
+        let parsedPassportDetails = {};
+        if (passportDetails) {
+            try {
+                parsedPassportDetails = typeof passportDetails === 'string'
+                    ? JSON.parse(passportDetails)
+                    : passportDetails;
+            } catch (e) {
+                return res.send({ ok: false, msg: "Pasport ma'lumotlari formati noto'g'ri!" });
+            }
+        }
+
+        if (!parsedPassportDetails.passportSeria || !parsedPassportDetails.passportNumber || !parsedPassportDetails.jshshir || !parsedPassportDetails.givenDate || !parsedPassportDetails.expiresDate || !parsedPassportDetails.givenBy) {
+            return res.send({
+                ok: false,
+                msg: "Pasport ma'lumotlari to'liq kiritilishi shart!"
+            });
+        }
+
+        // 2. Majburiy 4 ta fayl kelganini tekshirish
+        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
+            return res.send({
+                ok: false,
+                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni yuklang!"
+            });
+        }
+
+        // 3. Takroriy arizani tekshirish (Bazadan)
+        const existingApplication = await Application.findOne({ usernameId });
+        if (existingApplication) {
+            return res.send({
+                ok: false,
+                msg: "Siz allaqachon ariza yuborgansiz!"
+            });
+        }
+
+        // Fayllar saqlanadigan papka mavjudligini tekshirish, bo'lmasa yaratish
+        const dirPath = './public/applications';
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        // 4. Majburiy fayllar uchun unikal nom va saqlash yo'llarini (path) yaratish
+        const cvPath = `/public/applications/${md5(files.cvFile.name + Date.now())}_cv.pdf`;
+        const gpaPath = `/public/applications/${md5(files.gpaFile.name + Date.now())}_gpa.pdf`;
+        const certPath = `/public/applications/${md5(files.universityCertificate.name + Date.now())}_cert.pdf`;
+        const passportPath = `/public/applications/${md5(files.passportFile.name + Date.now())}_passport.pdf`;
+        
+        // Imtiyoz faylini xavfsiz tekshirish (Faqat fayl kelgan bo'lsagina yo'l yaratadi, aks holda null)
+        let imtiyozPath = null;
+        if (files.privilegeFile) {
+            imtiyozPath = `/public/applications/${md5(files.privilegeFile.name + Date.now())}_imtiyoz.pdf`;
+        }
+
+        // Siblings (Massiv) ma'lumotini parslash
+        let parsedSiblings = siblings;
+        if (typeof siblings === 'string' && siblings.trim() !== '') {
+            try { parsedSiblings = JSON.parse(siblings); } catch (e) { parsedSiblings = []; }
+        }
+
+        // 5. Ma'lumotlarni bazaga yozish
+        const newApplication = new Application({
+            usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+            passportDetails: parsedPassportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+            researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+            previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+            fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+            motherBirthDate, siblings: parsedSiblings, motivationLetter,
+            cvFile: cvPath,
+            gpaFile: gpaPath,
+            universityCertificate: certPath,
+            passportFile: passportPath,
+            imtiyoz: imtiyozPath, // Imtiyoz bo'lmasa null saqlanadi
+            action: action
+        });
+
+        // Bazaga saqlaymiz
+        const savedApplication = await newApplication.save();
+
+        // 6. Majburiy fayllarni server xotirasiga ko'chirish (.mv() orqali)
+        await files.cvFile.mv(`.${cvPath}`);
+        await files.gpaFile.mv(`.${gpaPath}`);
+        await files.universityCertificate.mv(`.${certPath}`);
+        await files.passportFile.mv(`.${passportPath}`);
+        
+        // Agar imtiyoz fayli yuklangan bo'lsagina uni serverga yuklaymiz
+        if (files.privilegeFile && imtiyozPath) {
+            await files.privilegeFile.mv(`.${imtiyozPath}`);
+        }
+
+        // 7. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
+        if (typeof addToGoogleSheet === 'function') {
+            await addToGoogleSheet(savedApplication);
+        }
+
+        return res.send({
+            ok: true,
+            msg: "Arizangiz muvaffaqiyatli jo'natildi!"
+        });
+
+    } catch (err) {
+        console.error("Xatolik:", err);
+        return res.send({
+            ok: false,
+            msg: err.message || "Arizani saqlashda kutilmagan xatolik yuz berdi."
+        });
+    }
+},
+    resend: async (req, res) => {
+    try {
+        // express-fileupload'da matnli ma'lumotlar req.body ichida keladi
+        const {
+            usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+            passportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+            researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+            previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+            fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+            motherBirthDate, siblings, motivationLetter, action
+        } = req.body;
+
+        // Fayllar req.files ichida keladi
+        const files = req.files || {};
+
+        // 1. Majburiy matnli maydonlarni to'liq tekshirish
+        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
+            return res.send({
+                ok: false,
+                msg: "Iltimos, barcha majburiy matnli maydonlarni to'ldiring!"
+            });
+        }
+
+        // Pasport obyektini xavfsiz parslash (Frontend string qilib yuborgan bo'lsa)
+        let parsedPassportDetails = {};
+        if (passportDetails) {
+            try {
+                parsedPassportDetails = typeof passportDetails === 'string'
+                    ? JSON.parse(passportDetails)
+                    : passportDetails;
+            } catch (e) {
+                return res.send({ ok: false, msg: "Pasport ma'lumotlari formati noto'g'ri!" });
+            }
+        }
+
+        if (!parsedPassportDetails.passportSeria || !parsedPassportDetails.passportNumber || !parsedPassportDetails.jshshir || !parsedPassportDetails.givenDate || !parsedPassportDetails.expiresDate || !parsedPassportDetails.givenBy) {
+            return res.send({
+                ok: false,
+                msg: "Pasport ma'lumotlari to'liq kiritilishi shart!"
+            });
+        }
+
+        // 2. Majburiy 4 ta fayl kelganini tekshirish
+        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
+            return res.send({
+                ok: false,
+                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni yuklang!"
+            });
+        }
+
+        // 3. Eski (rad etilgan yoki mavjud) arizani qidirish
+        const existingApplication = await Application.findOne({ usernameId });
+        
+        // Agar eski ariza bo'lsa, uning yuklangan eski fayllarini jismonan serverdan o'chiramiz
+        if (existingApplication) {
+            const oldFiles = [
+                existingApplication.cvFile,
+                existingApplication.gpaFile,
+                existingApplication.universityCertificate,
+                existingApplication.passportFile,
+                existingApplication.imtiyoz
+            ];
+
+            oldFiles.forEach(filePath => {
+                if (filePath) {
+                    // Yo'lni to'g'rilash (masalan, '/public/...' ni './public/...' ga)
+                    const fullPath = filePath.startsWith('.') ? filePath : `.${filePath}`;
+                    if (fs.existsSync(fullPath)) {
+                        fs.unlinkSync(fullPath); // Faylni o'chirish
+                    }
+                }
+            });
+
+            // Eski arizani ma'lumotlar bazasidan o'chiramiz
+            await Application.deleteOne({ usernameId });
+        }
+
+        // Fayllar saqlanadigan papka mavjudligini tekshirish, bo'lmasa yaratish
+        const dirPath = './public/applications';
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        // 4. Yangi fayllar uchun unikal nom va saqlash yo'llarini (path) yaratish
+        const cvPath = `/public/applications/${md5(files.cvFile.name + Date.now())}_cv.pdf`;
+        const gpaPath = `/public/applications/${md5(files.gpaFile.name + Date.now())}_gpa.pdf`;
+        const certPath = `/public/applications/${md5(files.universityCertificate.name + Date.now())}_cert.pdf`;
+        const passportPath = `/public/applications/${md5(files.passportFile.name + Date.now())}_passport.pdf`;
+        
+        // Imtiyoz fayli ixtiyoriy (agar jo'natilgan bo'lsa yo'l yaratamiz, bo'lmasa null)
+        let imtiyozPath = null;
+        if (files.privilegeFile) {
+            imtiyozPath = `/public/applications/${md5(files.privilegeFile.name + Date.now())}_imtiyoz.pdf`;
+        }
+
+        // Siblings (Massiv) ma'lumotini parslash
+        let parsedSiblings = siblings;
+        if (typeof siblings === 'string' && siblings.trim() !== '') {
+            try { parsedSiblings = JSON.parse(siblings); } catch (e) { parsedSiblings = []; }
+        }
+
+        // 5. Yangi ma'lumotlarni bazaga yozish
+        const newApplication = new Application({
+            usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
+            passportDetails: parsedPassportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
+            researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
+            previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
+            fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
+            motherBirthDate, siblings: parsedSiblings, motivationLetter,
+            cvFile: cvPath,
+            gpaFile: gpaPath,
+            universityCertificate: certPath,
+            passportFile: passportPath,
+            imtiyoz: imtiyozPath, // Bo'sh bo'lsa null saqlanadi
+            action: action,
+            status: 'resended' // Qayta yuborilgan statusi
+        });
+
+        // Bazaga saqlaymiz
+        const savedApplication = await newApplication.save();
+
+        // 6. Fayllarni haqiqatda server xotirasiga ko'chirish (.mv() orqali)
+        await files.cvFile.mv(`.${cvPath}`);
+        await files.gpaFile.mv(`.${gpaPath}`);
+        await files.universityCertificate.mv(`.${certPath}`);
+        await files.passportFile.mv(`.${passportPath}`);
+        
+        // Agar imtiyoz fayli yuklangan bo'lsagina uni serverga ko'chiramiz
+        if (files.privilegeFile && imtiyozPath) {
+            await files.privilegeFile.mv(`.${imtiyozPath}`);
+        }
+
+        // 7. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
+        if (typeof addToGoogleSheet === 'function') {
+            await addToGoogleSheet(savedApplication);
+        }
+
+        return res.send({
+            ok: true,
+            msg: "Arizangiz muvaffaqiyatli qayta jo'natildi!"
+        });
+
+    } catch (err) {
+        console.error("Xatolik:", err);
+        return res.send({
+            ok: false,
+            msg: err.message || "Arizani qayta saqlashda kutilmagan xatolik yuz berdi."
+        });
+    }
+},
     updateStatus: async (req, res) => {
         try {
             // Frontend yoki Postmandan ariza egasining usernameId va yangi statusini olamiz
