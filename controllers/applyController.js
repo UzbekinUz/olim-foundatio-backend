@@ -629,6 +629,63 @@ module.exports = {
                 msg: err.message || "Yangilashda kutilmagan xatolik yuz berdi."
             });
         }
-    }
+    },
+    deleteOne: async (req, res) => {
+        try {
+            // URL params orqali kelgan id ni olamiz (/api/applications/:id)
+            const id = req.params.id;
 
+            if (!id) {
+                return res.send({
+                    ok: false,
+                    msg: "Ariza identifikatori (id) kiritilishi shart!"
+                });
+            }
+
+            // 1. Avval bazadan arizani topamiz
+            const application = await Application.findOne({ _id: id });
+
+            if (!application) {
+                return res.send({
+                    ok: false,
+                    msg: "Bunday foydalanuvchiga tegishli ariza topilmadi!"
+                });
+            }
+
+            // 2. O'chirilishi kerak bo'lgan barcha fayllar ro'yxati
+            const filesToDelete = [
+                application.cvFile,
+                application.gpaFile,
+                application.universityCertificate,
+                application.passportFile,
+                application.imtiyoz // Agar null bo'lsa, pastdagi if uni tekshirib tashlab ketadi
+            ];
+
+            // 3. Fayllarni mavjudligini tekshirib, server xotirasidan o'chiramiz
+            filesToDelete.forEach(filePath => {
+                // filePath null yoki undefined bo'lmasa va bo'sh matn bo'lmasagina ichiga kiradi
+                if (filePath) {
+                    const fullPath = filePath.startsWith('.') ? filePath : `.${filePath}`;
+                    if (fs.existsSync(fullPath)) {
+                        fs.unlinkSync(fullPath);
+                    }
+                }
+            });
+
+            // 4. Arizani ma'lumotlar bazasidan o'chiramiz
+            await Application.deleteOne({ _id: id });
+
+            return res.send({
+                ok: true,
+                msg: "Ariza va unga tegishli barcha hujjatlar muvaffaqiyatli o'chirildi!"
+            });
+
+        } catch (err) {
+            console.error("DeleteOne Xatolik:", err);
+            return res.send({
+                ok: false,
+                msg: err.message || "Arizani o'chirishda kutilmagan xatolik yuz berdi."
+            });
+        }
+    },
 };
