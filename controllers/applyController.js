@@ -156,7 +156,7 @@ const fs = require("fs");
 const md5 = require('md5');
 const applicationModel = require("../models/applicationModel.js");
 module.exports = {
-    add: async (req, res) => {
+add: async (req, res) => {
     try {
         // express-fileupload'da matnli ma'lumotlar req.body ichida keladi
         const {
@@ -165,14 +165,14 @@ module.exports = {
             researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
             previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
             fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-            motherBirthDate, siblings, motivationLetter, action
+            motherBirthDate, siblings, action
         } = req.body;
 
         // Fayllar kelmasa bo'sh obyekt qilib olamiz (Crash bo'lishini oldini oladi)
         const files = req.files || {};
 
-        // 1. Majburiy matnli maydonlarni to'liq tekshirish
-        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
+        // 1. Majburiy matnli maydonlarni to'liq tekshirish (motivationLetter bu yerdan olib tashlandi)
+        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName) {
             return res.send({
                 ok: false,
                 msg: "Iltimos, barcha majburiy matnli maydonlarni to'ldiring!"
@@ -198,11 +198,11 @@ module.exports = {
             });
         }
 
-        // 2. Majburiy 4 ta fayl kelganini tekshirish
-        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
+        // 2. Majburiy 5 ta fayl kelganini tekshirish (motivationLetter ham qo'shildi)
+        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile || !files.motivationLetter) {
             return res.send({
                 ok: false,
-                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni yuklang!"
+                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni (shu jumladan Motivation Letter faylini) yuklang!"
             });
         }
 
@@ -221,11 +221,20 @@ module.exports = {
             fs.mkdirSync(dirPath, { recursive: true });
         }
 
+        // Word yoki PDF formatining asl kengaytmasini aniqlash (.docx, .doc, .pdf)
+        const getExtension = (filename) => {
+            const ext = filename.split('.').pop();
+            return ext ? `.${ext}` : '.docx'; // topilmasa default .docx
+        };
+
+        const motivationExt = getExtension(files.motivationLetter.name);
+
         // 4. Majburiy fayllar uchun unikal nom va saqlash yo'llarini (path) yaratish
         const cvPath = `/public/applications/${md5(files.cvFile.name + Date.now())}_cv.pdf`;
         const gpaPath = `/public/applications/${md5(files.gpaFile.name + Date.now())}_gpa.pdf`;
         const certPath = `/public/applications/${md5(files.universityCertificate.name + Date.now())}_cert.pdf`;
         const passportPath = `/public/applications/${md5(files.passportFile.name + Date.now())}_passport.pdf`;
+        const motivationLetterPath = `/public/applications/${md5(files.motivationLetter.name + Date.now())}_motivation${motivationExt}`;
         
         // Imtiyoz faylini xavfsiz tekshirish (Faqat fayl kelgan bo'lsagina yo'l yaratadi, aks holda null)
         let imtiyozPath = null;
@@ -246,7 +255,8 @@ module.exports = {
             researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
             previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
             fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-            motherBirthDate, siblings: parsedSiblings, motivationLetter,
+            motherBirthDate, siblings: parsedSiblings, 
+            motivationLetter: motivationLetterPath, // Matn o'rniga fayl yo'li yoziladi
             cvFile: cvPath,
             gpaFile: gpaPath,
             universityCertificate: certPath,
@@ -263,6 +273,7 @@ module.exports = {
         await files.gpaFile.mv(`.${gpaPath}`);
         await files.universityCertificate.mv(`.${certPath}`);
         await files.passportFile.mv(`.${passportPath}`);
+        await files.motivationLetter.mv(`.${motivationLetterPath}`);
         
         // Agar imtiyoz fayli yuklangan bo'lsagina uni serverga yuklaymiz
         if (files.privilegeFile && imtiyozPath) {
@@ -296,14 +307,14 @@ module.exports = {
             researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
             previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
             fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-            motherBirthDate, siblings, motivationLetter, action
+            motherBirthDate, siblings, action
         } = req.body;
 
         // Fayllar req.files ichida keladi
         const files = req.files || {};
 
-        // 1. Majburiy matnli maydonlarni to'liq tekshirish
-        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName || !motivationLetter) {
+        // 1. Majburiy matnli maydonlarni to'liq tekshirish (motivationLetter bu yerdan olib tashlandi)
+        if (!usernameId || !studentFullName || !phoneNumber || !emailAddress || !universityName) {
             return res.send({
                 ok: false,
                 msg: "Iltimos, barcha majburiy matnli maydonlarni to'ldiring!"
@@ -329,17 +340,24 @@ module.exports = {
             });
         }
 
-        // 2. Majburiy 4 ta fayl kelganini tekshirish
-        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile) {
+        // 2. Majburiy 5 ta fayl kelganini tekshirish (motivationLetter ham qo'shildi)
+        if (!files.cvFile || !files.gpaFile || !files.universityCertificate || !files.passportFile || !files.motivationLetter) {
             return res.send({
                 ok: false,
-                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni yuklang!"
+                msg: "Iltimos, barcha so'ralgan majburiy hujjatlarni (shu jumladan Motivation Letter faylini) yuklang!"
             });
         }
 
         // 3. Eski (rad etilgan yoki mavjud) arizani qidirish
         const existingApplication = await Application.findOne({ usernameId });
         
+        // --- YANGI QO'SHILGAN QISM: Eski arizaning oxirgi action-ini saqlab qolish ---
+        let finalAction = action; // Dastlab frontenddan kelgan action-ni o'rnatamiz
+        if (existingApplication && existingApplication.action) {
+            finalAction = existingApplication.action; // Agar eski arizada bo'lsa, o'shani olib qolamiz
+        }
+        // ------------------------------------------------------------------------
+
         // Agar eski ariza bo'lsa, uning yuklangan eski fayllarini jismonan serverdan o'chiramiz
         if (existingApplication) {
             const oldFiles = [
@@ -347,6 +365,7 @@ module.exports = {
                 existingApplication.gpaFile,
                 existingApplication.universityCertificate,
                 existingApplication.passportFile,
+                existingApplication.motivationLetter, // Eski motivation letter faylini ham o'chiramiz
                 existingApplication.imtiyoz
             ];
 
@@ -370,11 +389,20 @@ module.exports = {
             fs.mkdirSync(dirPath, { recursive: true });
         }
 
+        // Word yoki PDF formatining asl kengaytmasini aniqlash (.docx, .doc, .pdf)
+        const getExtension = (filename) => {
+            const ext = filename.split('.').pop();
+            return ext ? `.${ext}` : '.docx';
+        };
+
+        const motivationExt = getExtension(files.motivationLetter.name);
+
         // 4. Yangi fayllar uchun unikal nom va saqlash yo'llarini (path) yaratish
         const cvPath = `/public/applications/${md5(files.cvFile.name + Date.now())}_cv.pdf`;
         const gpaPath = `/public/applications/${md5(files.gpaFile.name + Date.now())}_gpa.pdf`;
         const certPath = `/public/applications/${md5(files.universityCertificate.name + Date.now())}_cert.pdf`;
         const passportPath = `/public/applications/${md5(files.passportFile.name + Date.now())}_passport.pdf`;
+        const motivationLetterPath = `/public/applications/${md5(files.motivationLetter.name + Date.now())}_motivation${motivationExt}`;
         
         // Imtiyoz fayli ixtiyoriy (agar jo'natilgan bo'lsa yo'l yaratamiz, bo'lmasa null)
         let imtiyozPath = null;
@@ -388,20 +416,21 @@ module.exports = {
             try { parsedSiblings = JSON.parse(siblings); } catch (e) { parsedSiblings = []; }
         }
 
-        // 5. Yangi ma'lumotlarni bazaga yozish
+        // 5. Yangi ma'lumotlarni bazaga yozish (action uchun finalAction qo'yildi)
         const newApplication = new Application({
             usernameId, studentFullName, birthDate, nationality, permanentAddress, phoneNumber, emailAddress,
             passportDetails: parsedPassportDetails, universityName, studyForm, studyField, currentCourse, isDoingResearch,
             researchDetails, hasConferenceParticipation, hasPublications, usedPreviousGrants,
             previousGrantDetails, contractAmount, familyMembersCount, fatherFullName, fatherWorkPlace,
             fatherPosition, fatherBirthDate, motherFullName, motherWorkPlace, motherPosition,
-            motherBirthDate, siblings: parsedSiblings, motivationLetter,
+            motherBirthDate, siblings: parsedSiblings, 
+            motivationLetter: motivationLetterPath, // Yangi yuklangan fayl yo'li yoziladi
             cvFile: cvPath,
             gpaFile: gpaPath,
             universityCertificate: certPath,
             passportFile: passportPath,
             imtiyoz: imtiyozPath, // Bo'sh bo'lsa null saqlanadi
-            action: action,
+            action: finalAction, // Eski arizadan saqlab qolingan oxirgi action qiymati yuklanadi
             status: 'resended' // Qayta yuborilgan statusi
         });
 
@@ -413,6 +442,7 @@ module.exports = {
         await files.gpaFile.mv(`.${gpaPath}`);
         await files.universityCertificate.mv(`.${certPath}`);
         await files.passportFile.mv(`.${passportPath}`);
+        await files.motivationLetter.mv(`.${motivationLetterPath}`);
         
         // Agar imtiyoz fayli yuklangan bo'lsagina uni serverga ko'chiramiz
         if (files.privilegeFile && imtiyozPath) {
