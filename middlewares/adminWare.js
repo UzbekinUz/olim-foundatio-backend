@@ -5,7 +5,7 @@ module.exports = (req, res, next) => {
     if (!token) {
         res.send({
             ok: false,
-            msg: "Avtorizatsiya qiling!"+token
+            msg: "Avtorizatsiya qiling!"
             
         });
     } else {
@@ -18,6 +18,7 @@ module.exports = (req, res, next) => {
             } else {
                 const { adminId } = payload;
                 const $admin = await applicationModel.findOne({ _id: adminId });
+                // console.log(adminId)
                 if (!$admin) {
                     res.send({
                         ok: false,

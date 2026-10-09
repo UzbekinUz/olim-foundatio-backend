@@ -29,8 +29,8 @@ module.exports = (req, res, next) => {
                         msg: "Qurulmada sessiya yakunlangan! Qayta avtorizatsiya qiling!"
                     })
                 } else {
-                    const { _id, username,password } = $admin;
-                    req.user = {usernameId:_id, username, password };
+                    const { _id, username } = $admin;
+                    req.user = {usernameId:_id, username };
                     next();
                 }
             }

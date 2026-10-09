@@ -1,7 +1,8 @@
 const webController = require('../controllers/webController');
+const adminWare = require('../middlewares/adminWare');
 
 module.exports = require('express')()
-.post('/add', webController.addPeople)
+.post('/add', adminWare, webController.addPeople)
 .get('/getall', webController.getAll)
-.delete('/delete', webController.deletePeople)
-.put('/edit', webController.changePeople)
+.delete('/delete', adminWare, webController.deletePeople)
+.put('/edit', adminWare, webController.changePeople)

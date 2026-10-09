@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const User = require('../models/adminModel')
 
 module.exports = {
@@ -59,7 +58,7 @@ module.exports = {
     },
     getall: async (req, res) => {
         try {
-            const users = await User.find();
+            const users = await User.find().select("-access_token");
 
             return res.send({
                 ok: true,
@@ -106,7 +105,7 @@ module.exports = {
             if (password) updateData.password = password;
             if (role) updateData.role = role;
 
-            const updatedUser = await User.findByIdAndUpdate(id, updateData, { returnDocument: 'after'});
+            const updatedUser = await User.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
 
             if (!updatedUser) {
                 return res.send({
@@ -156,7 +155,6 @@ module.exports = {
 
         } catch (err) {
             console.error(err);
-            console.log(req.body)
             return res.send({
                 ok: false,
                 msg: "Xatolik yuz berdi"
@@ -189,7 +187,7 @@ module.exports = {
                     msg: "Parol hato kiritildi!"
                 });
             } else {
-                const token = require('jsonwebtoken').sign({ adminId: $user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+                const token = require('jsonwebtoken').sign({ adminId: $user._id }, process.env.JWT_SECRET, { expiresIn: "2h" });
                 $user.set({ access_token: token }).save();
                 res.send({
                     ok: true,
@@ -208,5 +206,27 @@ module.exports = {
             ok: true,
             msg: "Profildan chiqish amalga oshdi!"
         });
+    },
+    getone: async (req, res) => {
+        try {
+            const { id } = req.params; // Olingan ID
+            const user = await User.findById(id).select("-access_token");
+            if (!user) {
+                return res.send({
+                    ok: false,
+                    msg: "Foydalanuvchi topilmadi"
+                });
+            }
+            return res.send({
+                ok: true,
+                data: user
+            });
+        } catch (err) {
+            console.error(err);
+            return res.send({
+                ok: false,
+                msg: "Xatolik yuz berdi"
+            });
+        }
     }
-};
+}

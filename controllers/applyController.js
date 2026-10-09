@@ -4,20 +4,23 @@ const { GoogleSpreadsheet } = require("google-spreadsheet");
 const path = require('path')
 process.env.NODE_ENV !== 'production' ? require('dotenv').config({ path: '.env' }) : null;
 const SiteLink = process.env.SITE_LINK
+// Google Sheet birinchi varagʻini qaytaradi (barcha funksiyalar uchun umumiy ulanish)
+async function getSheet() {
+    const serviceAccountAuth = new JWT({
+        email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // \n belgilari buzilmasligi uchun
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
+    await doc.loadInfo();
+    return doc.sheetsByIndex[0];
+}
+
 // Barcha ma'lumotlarni Google Sheetga yozuvchi funksiya
 async function addToGoogleSheet(applicationData) {
     try {
         // .env faylingizdagi ma'lumotlar bilan Google API'ga ulanish
-        const serviceAccountAuth = new JWT({
-            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // \n belgilari buzilmasligi uchun
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-
-        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
-        await doc.loadInfo();
-
-        const sheet = doc.sheetsByIndex[0];
+        const sheet = await getSheet();
 
         // MODELNING BARCHA MA'LUMOTLARINI GOOGLE SHEETGA UZATISH
         await sheet.addRow({
@@ -90,15 +93,7 @@ async function addToGoogleSheet(applicationData) {
 
 async function updateGoogleSheetStatus(usernameId, newStatus) {
     try {
-        const serviceAccountAuth = new JWT({
-            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-
-        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
-        await doc.loadInfo();
-        const sheet = doc.sheetsByIndex[0];
+        const sheet = await getSheet();
 
         // 1. Google Sheet-dagi barcha qatorlarni o'qib olamiz
         const rows = await sheet.getRows();
@@ -122,15 +117,7 @@ async function updateGoogleSheetStatus(usernameId, newStatus) {
 
 async function updateGoogleSheetWinner(usernameId, status) {
     try {
-        const serviceAccountAuth = new JWT({
-            email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-
-        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
-        await doc.loadInfo();
-        const sheet = doc.sheetsByIndex[0];
+        const sheet = await getSheet();
 
         // 1. Google Sheet-dagi barcha qatorlarni o'qib olamiz
         const rows = await sheet.getRows();
@@ -281,9 +268,7 @@ add: async (req, res) => {
         }
 
         // 7. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
-        if (typeof addToGoogleSheet === 'function') {
-            await addToGoogleSheet(savedApplication);
-        }
+        await addToGoogleSheet(savedApplication);
 
         return res.send({
             ok: true,
@@ -450,9 +435,7 @@ add: async (req, res) => {
         }
 
         // 7. Bir vaqtning o'zida hamma ma'lumotni Google Sheetga uzatish
-        if (typeof addToGoogleSheet === 'function') {
-            await addToGoogleSheet(savedApplication);
-        }
+        await addToGoogleSheet(savedApplication);
 
         return res.send({
             ok: true,
@@ -688,6 +671,7 @@ add: async (req, res) => {
                 application.gpaFile,
                 application.universityCertificate,
                 application.passportFile,
+                application.motivationLetter,
                 application.imtiyoz // Agar null bo'lsa, pastdagi if uni tekshirib tashlab ketadi
             ];
 
